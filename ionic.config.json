@@ -1,5 +1,7 @@
 {
   "name": "tesalia-presale",
-  "integrations": {},
+  "integrations": {
+    "capacitor": {}
+  },
   "type": "vue"
 }
