@@ -1,0 +1,393 @@
+<template>
+
+  <ion-page>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title class="ion-text-center"> <img height="56" src="/assets/img/logo-header-main.png" /></ion-title>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content :fullscreen="true" class="ion-text-center ion-padding-bottom">
+        <div class="ion-padding" style="background-color:#000;font-size:1.2em;position:fixed;z-index:1000;width:100%">
+          <span>Tiempo Transcurrido</span> 
+          <span class="border" style="padding:6px;margin-left:15px;margin-right:15px">
+            {{minutes}} : <span v-if="seconds.toString().length == 1">0</span>{{seconds}}
+          </span>
+        </div>
+
+        <div class="ion-padding">
+          <h5 style="margin-top:3rem">Fotos Iniciales y Finales de la Actividad</h5>
+          <ion-grid>
+            <ion-row>
+              <ion-col>
+                <div class="border">
+                  <div v-if="photoFirstUrl==''">
+                    <input type="file" id="file1" @change="savePhotoFirst($event)" hidden/>
+                    <label for="file1"> <ion-icon name="image-outline"></ion-icon> Subir Foto Inicial</label>
+                  </div>
+                  <div v-else>
+                    <ion-icon name="close-circle" size="large" style="position:absolute;top:-3px;right:-3px" @click="removePhoto(1)"></ion-icon>
+                    <img :src="photoFirstUrl">
+                  </div>
+                </div>
+              </ion-col>
+              <ion-col>
+                <div class="border">
+                  <div v-if="photoLastUrl==''">
+                    <input type="file" id="file2" @change="savePhotoLast($event)" hidden/>
+                    <label for="file2"> <ion-icon name="image-outline"></ion-icon> Subir Foto Final</label>
+                  </div>
+                  <div v-else>
+                    <ion-icon name="close-circle" size="large" style="position:absolute;top:-3px;right:-3px" @click.stop="removePhoto(2)"></ion-icon>
+                    <img :src="photoLastUrl">
+                  </div>
+                </div>
+              </ion-col>
+            </ion-row>
+          </ion-grid>
+        </div>
+        
+        <div>
+          <h5>Completar Encuesta</h5>
+          <ion-grid>
+            <ion-row>
+              <ion-col>PRODUCTOS</ion-col>
+              <ion-col>UNIDADES</ion-col>
+            </ion-row>
+            <p class="ion-margin" style="border-top:1px solid #FFF"></p>
+            <div v-for="(product,indexP) in products" :key="indexP" class="ion-margin">
+              <div class="col">
+                <ion-label>{{product.name}}</ion-label>
+                <ion-input class="border" style="font-size:1.6em" v-model.lazy="product.value"></ion-input>
+              </div>
+            </div>
+          </ion-grid>
+
+        </div>
+
+        <div style="clear:both">
+          <h5 class="ion-padding-top">Agregar Novedades de la Ruta</h5>
+          <ion-list style="background:unset">
+            <div v-for="(incidencia,index) in incidencias" :key="index">
+              <ion-item color="dark" >
+                <ion-label>{{incidencia.text}}</ion-label>
+                <ion-checkbox
+                  slot="start"
+                  @update:modelValue="incidencia.isChecked = $event"
+                  :modelValue="incidencia.isChecked">
+                </ion-checkbox>
+              </ion-item>
+              <div style="padding: 0px 15px 15px 15px" v-show="incidencia.isChecked">
+                <ion-textarea class="ion-text-left border"  placeholder="Agregar comentario..." v-model="incidencia.comment"></ion-textarea>
+              </div>
+            </div>
+          </ion-list>
+        </div>
+
+          <ion-button fill="outline" color="light" @click="goBack">Atras</ion-button>
+          <ion-button style="margin-left:2rem" @click="presentAlertConfirm">Continuar</ion-button>
+
+    </ion-content>
+  </ion-page>
+</template>
+
+<script>
+/* eslint-disable */
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent , IonGrid , IonRow , IonCol , IonLabel , IonInput , IonTextarea , IonCheckbox , IonList , IonItem , toastController , IonButton , IonIcon , alertController } from '@ionic/vue';
+import { useRouter } from 'vue-router';
+import { addIcons } from 'ionicons';
+import { imageOutline , checkmarkOutline , closeCircle } from 'ionicons/icons';
+import axios from 'axios';
+import { Geolocation } from '@ionic-native/geolocation'
+import imageCompression from 'browser-image-compression'
+import { Filesystem , Directory  } from '@capacitor/filesystem';
+import { Capacitor  } from '@capacitor/core';
+
+export default  {
+  name: 'Process',
+  components: { IonPage, IonHeader, IonToolbar, IonTitle, IonContent , IonGrid , IonRow , IonCol , IonLabel , IonInput , IonTextarea , IonCheckbox , IonList , IonItem , IonButton , IonIcon }
+  ,data () {
+      return {
+            count: true,
+            minutes: 0,
+            seconds: 0,
+            products: [],
+            incidencias: [],
+            photoFirstUrl: '',
+            photoFirstFile: null,
+            photoLastUrl: '',
+            photoLastFile: null,
+            client: this.$store.getters.GET_CLIENT,
+            conexion: false
+        }
+  },
+  methods:{
+    savePhotoFirst(event){
+        this.photoFirstFile = event.target.files[0];
+        this.photoFirstUrl = URL.createObjectURL(this.photoFirstFile);
+        console.log(event.target)
+      },
+    savePhotoLast(event){
+      this.photoLastFile = event.target.files[0];
+      this.photoLastUrl = URL.createObjectURL(this.photoLastFile);
+      console.log(event.target)
+    },
+    removePhoto(index){
+      if(index == 1){
+        this.photoFirstUrl = ''
+        this.photoFirstFile = null
+      }else if(index == 2){
+        this.photoLastUrl = ''
+        this.photoLastFile = null
+      }
+    },
+    getPols(){
+      console.log('getting polls')
+      axios.get('https://preventa-dev.plantroya.com/api/v1/seller/poll/create' )
+        .then( response => {
+            //this.$store.dispatch('SET_POLS_ACTION' , response.data.rows )
+            this.products = response.data.rows
+            this.products.forEach(prod => { //asignando un valor para el input
+              prod.value = 0
+            });
+        })
+        .catch( failure => {
+            console.log(failure)
+        })
+    },
+    getIncidences(){
+      console.log('getting incidences')
+      axios.get('https://preventa-dev.plantroya.com/api/v1/seller/poll/getincidences' )
+        .then( response => {
+            //this.$store.dispatch('SET_POLS_ACTION' , response.data.rows )
+            this.incidencias = []
+            let arrayIncidences = response.data.rows
+            arrayIncidences.forEach(incidencia => {
+              this.incidencias.push({id: incidencia.id, text: incidencia.name, isChecked: false , comment: ''})
+            });
+        })
+        .catch( failure => {
+            console.log(failure)
+        })
+    },
+    getLocation(){
+      Geolocation.getCurrentPosition().then((resp) => {
+        console.log(resp.coords.latitude)
+        console.log(resp.coords.longitude)
+        this.$store.dispatch('SET_LAT_ACTION', resp.coords.latitude )
+        this.$store.dispatch('SET_LONG_ACTION', resp.coords.longitude )
+      }).catch((err) => {
+        console.log(err)
+      })
+    },
+    saveTime(){
+      this.count = false
+      let time = 0;
+      if(this.minutes >= 1){
+        time = this.minutes*60
+      }
+      time = time + this.seconds
+      this.$store.dispatch('SET_TIME_ACTION', time )
+      console.log('Tiempo Finalizado');
+    },
+    orderPolls(){
+      this.products = this.products.sort(function (a,b) {
+        if(a.group_id > b.group_id){
+          return a;
+        }
+      })
+    },
+    async completeProcess(){
+        this.saveTime();
+
+        //Parametros a servidor para insertar poll
+        let form = new FormData;
+        
+        /* Comprimiendo Imagenes */
+        const options = {
+          maxSizeMB: 30,
+          maxWidthOrHeight: 1024,
+          initialQuality : 0.8,
+          useWebWorker: true
+        };
+
+        let file1 = imageCompression(this.photoFirstFile, options);
+        let file2 = imageCompression(this.photoLastFile, options);
+        
+
+        form.append('client_id', this.client.id )
+        form.append('lat', this.$store.getters.GET_LAT )
+        form.append('lng', this.$store.getters.GET_LONG )
+        form.append('file_before', file1) //Enviando foto comprimida
+        form.append('file_after', file2) //Enviando foto comprimida
+
+        let rows = [];
+        this.products.forEach(product => {
+          rows.push({
+            id: product.id,
+            name: product.name,
+            value: product.value
+          })
+        });
+
+        form.append('rows', JSON.stringify(rows) ) //enviando respuestas
+
+        /* Validando incidencias */
+        let incidences = [] // Incidencias que se envian a api
+        this.incidencias.forEach(incidencia => {
+          if(incidencia.isChecked){
+            incidences.push({
+              id: incidencia.id,
+              comment: incidencia.comment
+            })
+          }
+        });
+
+        form.append('incidences', JSON.stringify(incidences));
+
+        let recienteItem = {'client_id': this.client.id, 'client_code': this.client.code, 'lat': this.$store.getters.GET_LAT, 'lng': this.$store.getters.GET_LONG , 'file_before': file1, 'file_after': file2, 'rows': JSON.stringify(rows), 'incidences': JSON.stringify(incidences)}
+
+        if(this.conexion == true){
+          recienteItem.uploaded = true
+          axios.post( 'http://preventa-dev.plantroya.com/api/v1/seller/poll' , form )
+                .then( response => {
+                  console.log(response.data)
+                    if ( response.data.status ) {
+                        setTimeout( () => {
+                            this.$router.push('/complete');
+                        },500)
+                    } else {
+                      this.openToast(response.data.message , 'danger');
+                    }
+                })
+                .catch( failure  => {
+                    console.log( failure )
+                })
+        }else{
+          recienteItem.uploaded = false;
+          
+          this.$router.push('/complete');
+          
+        }
+    },
+    async presentAlertConfirm(){
+      if(this.validatePhotos() && this.validateAnswers() ){ //Si los campos han sido llenados correctamente
+        const alert = await alertController
+          .create({
+            cssClass: 'my-custom-class',
+            header: 'Finalizar Encuesta',
+            message: '¿Esta seguro que desea finalizar la encuesta con los campos ingresados?',
+            backdropDismiss: true,
+            translucent: true,
+            buttons: [
+              {
+                text: 'Cancelar',
+                role: 'cancel',
+                cssClass: 'secondary',
+                handler: () => {
+                  console.log('Confirm Cancel:')
+                },
+              },
+              {
+                text: 'Aceptar',
+                handler: () => {
+                  console.log('Confirm Okay')
+                    this.completeProcess();
+                },
+              },
+            ],
+          });
+        return alert.present();
+      }
+    },
+    async openToast(msg,type) {
+      const toast = await toastController
+        .create({
+          message: msg,
+          color: type,
+          duration: 2000
+        })
+      return toast.present();
+      
+    },
+    validatePhotos(){
+      if(this.photoFirstUrl == '' || this.photoLastUrl == ''){ //Si las fotos no se han cargado
+        this.openToast('Ingrese todas fotos requeridas','danger')
+        return false;
+      }else{
+        this.$store.dispatch('SET_IMAGE_BEFORE_ACTION', this.photoFirstFile); //Guardando fotos
+        this.$store.dispatch('SET_IMAGE_AFTER_ACTION', this.photoLastFile); //Guardando fotos
+        return true;
+      }
+    },
+    validateAnswers(){
+      return true;
+    },
+    goBack(){
+      this.$router.back();
+    }
+  },
+  setup() {
+    const router = useRouter();
+    return { router };
+  },
+  created() {
+    addIcons({
+      'image-outline': imageOutline,
+      'checkmark-outline': checkmarkOutline,
+      'close-circle': closeCircle
+    })
+    
+  },
+  mounted(){
+    this.getPols()
+    this.orderPolls()
+    this.getLocation()    
+    this.getIncidences()
+  },
+  watch: {
+    seconds: {
+      handler(){
+        if(this.count){
+          setTimeout(()=>{
+            this.seconds++
+            if(this.seconds == 60){
+              this.seconds = 0
+              this.minutes++
+            }
+          }, 1000 )
+        }
+      },
+      immediate: true
+    }
+    }
+}
+</script>
+
+<style scoped>
+  .border{
+    border: 1px solid #FFF;
+    border-radius: .25rem;
+  }
+  .custom{
+    width: 100px;
+    margin-right: 10px;
+  }
+  label{
+    display: inline-block;
+    background-color: rgb(14, 14, 14);
+    color: white;
+    padding: 0.5rem;
+    font-family: sans-serif;
+    border-radius: 0.2rem;
+    cursor: pointer;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    font-size: .9em;
+  }
+  .col{
+    float: left;
+    font-size: .7em;
+    max-width: 110px;
+    margin: 5px;
+  }
+</style>

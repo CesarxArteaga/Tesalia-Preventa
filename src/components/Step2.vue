@@ -8,7 +8,7 @@
             </ion-row>
             <ion-row v-for="(product , index) in products" :key="index">
                 <ion-col ><ion-text><h6 class="ion-text-left">{{product.name}}</h6></ion-text></ion-col>
-                <ion-col ><ion-input type="number" inputmode="numeric" style="background-color:#EEEEEE;border-radius:.5rem;width:60%;margin: 0 auto"></ion-input></ion-col>
+                <ion-col ><ion-input v-model="poll_val[index]" type="number" inputmode="numeric" style="background-color:#EEEEEE;border-radius:.5rem;width:60%;margin: 0 auto"></ion-input></ion-col>
             </ion-row>
 
         </ion-grid>
@@ -30,7 +30,8 @@ export default  {
   data () {
       return {
             //products : [ 'Pepsi 355 ml', 'Pepsi 1 L' , 'Big 300 ml Negra' , 'Big 911 ml Negra' , 'Gatoreade 500 ml' , 'Sporade 475 ml' , '220V 330 ml' , 'Volt 400 ml' , 'Vive 100' ],
-            products: this.$store.getters.GET_POLS
+            products: this.$store.getters.GET_POLS,
+            poll_val : [1,2,3,4,5,6,7,8,9]
         }
   },
   methods:{

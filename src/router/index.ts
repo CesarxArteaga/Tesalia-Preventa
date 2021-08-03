@@ -1,8 +1,8 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
-import Tabs from '../views/Tabs.vue'
+/* import Tabs from '../views/Tabs.vue' */
 import Home from '../views/Home.vue'
-import Process from '../views/Process.vue'
+import Poll from '../views/Poll.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -10,9 +10,9 @@ const routes: Array<RouteRecordRaw> = [
     component: Home
   },
   {
-    path:'/process',
-    component: Process
-  }
+    path: '/poll',
+    component: Poll
+  },
   /*{
     path: '/',
     redirect: '/tabs/tab1'
