@@ -46,6 +46,7 @@ import DataClient from '../components/DataClient.vue';
 /* import { Http } from '@capacitor-community/http'; */
 import Process from '../components/Process.vue';
 import Complete from '../components/Complete.vue';
+import { Network } from '@capacitor/network'
 export default  {
   name: 'SearchClient',
   components: { 'dataclient' : DataClient, 'process' : Process , 'complete': Complete , IonHeader, IonToolbar, IonTitle, IonContent, IonPage , IonLabel, IonInput, IonItem , IonButton , IonSpinner }
@@ -63,10 +64,14 @@ export default  {
   },
   methods:{
         nextStep(){
-            this.step++;
+            if(this.step < 3){
+                this.step++;
+            }
         },
         backStep(){
-            this.step--;
+            if(this.step > 1){
+                this.step--;
+            }
         },
         clearForm () {
             this.form.code = ''
@@ -80,6 +85,39 @@ export default  {
             const params = {
                 'client_code' : this.form.code
             }
+
+            const network = await Network.getStatus();
+
+            /* Si no esta conectado obtiene cliente del localstorage */
+            if(!network.connected){
+                /* Si no tiene clientes en localStorage presentar mensaje de error */
+                if(!localStorage.getItem('clientes-preventa')){
+                    this.isFetching = false
+                    return this.showToast('Sin Conexión - Syncroniza los clientes desde el home para trabajar offline')
+                }
+                let clientFound = null
+                const clients = JSON.parse(localStorage.getItem('clientes-preventa'));
+                for (let index = 0; index < clients.length; index++) {
+                    const client = clients[index];
+                    if(client.code == this.form.code){
+                        clientFound = client
+                        break;
+                    }
+                }
+
+                if(clientFound == null){
+                    this.isFetching = false
+                    this.showToast('No existe cliente')
+                }else{
+                    this.form.client = clientFound;
+                    this.$store.dispatch('SET_CLIENT_ACTION', clientFound ) //Guardando cliente en store
+                    setTimeout(() => {
+                        this.isFetching = false
+                        this.isLoaded = true
+                    }, 500);
+                }
+                
+            }else{
            
             /* const url = 'https://preventa.plantroya.com/api/v1/seller/client';
             const headers = {};
@@ -108,7 +146,7 @@ export default  {
                 this.showToast(error.error);
             } */
 
-            axios.get( 'https://preventa-dev.plantroya.com/api/v1/seller/client' , { params : params } )
+            axios.get( 'https://preventa.plantroya.com/api/v1/seller/client' , { params : params } )
                 .then( response => {
                     console.log( response.data )
                     if ( response.data.status ) {
@@ -128,6 +166,7 @@ export default  {
                     this.showToast(failure)
                     this.isFetching = false
                 })
+            }
         },
         async showToast (message) {
             const toast = await toastController.create({

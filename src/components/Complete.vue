@@ -9,7 +9,6 @@
 </template>
 
 <script>
-/* eslint-disable */
 import { IonButton , IonIcon } from '@ionic/vue';
 
 import { addIcons } from 'ionicons';
@@ -21,6 +20,7 @@ export default  {
   components: { IonButton , IonIcon },
   methods:{
     finish(){
+      console.log('go back')
       this.$store.dispatch('SET_CLIENT_ACTION',{});
       this.$store.dispatch('SET_POLL_ACTION',{});
       this.$router.go(-1);

@@ -13,6 +13,19 @@
         </ion-row>
       </ion-grid>
       <ion-button class="ion-margin-top" @click="goNext">Registrar Visita</ion-button>
+      <br><br>
+      <ion-button fill="outline" color="light" @click="()=>!openForm?openForm=true:openForm=false">Sincronizar Clientes</ion-button>
+
+      <ion-grid>
+        <ion-row>
+          <ion-col>
+            <div v-if="openForm" class="border">
+              <sync @closeForm="closeForm"></sync>
+            </div>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+      
 
       <p class="ion-margin" style="border-top:1px solid #FFF"></p>
       
@@ -30,12 +43,16 @@
       
       <h5>CLIENTES RECIENTES</h5>
       <ion-grid>
+          <ion-row>
+            <ion-col>Cliente</ion-col>
+            <ion-col>Status</ion-col>
+          </ion-row>
           <ion-row v-if="rutasRecientes.length == 0">
               <ion-col> <div class="ruta-item ion-padding"> No Tienes Rutas Recientes </div> </ion-col>
           </ion-row>
           <ion-row v-else v-for="(reciente , index ) in rutasRecientes" :key="index" class="ion-padding ruta-item" style="margin-bottom:5px">
               <ion-col> <div style="margin-top:5px"> {{reciente.client_code}} </div> </ion-col>
-              <ion-col class="ion-text-right"> 
+              <ion-col > 
                 <ion-icon v-if="reciente.uploaded" name="checkmark-circle-outline" style="font-size:30px" color="success"></ion-icon>
                 <ion-icon v-else name="sync" style="font-size:30px" color="warning" @click="sync( $event , index)" ></ion-icon>
               </ion-col>
@@ -47,22 +64,26 @@
 
 <script>
 /* eslint-disable */
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent , IonGrid , IonRow , IonCol , IonButton , IonIcon , toastController } from '@ionic/vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent , IonGrid , IonRow , IonCol , IonButton , IonIcon , IonButtons , toastController } from '@ionic/vue';
 import { addIcons } from 'ionicons';
-import { sync , checkmarkCircleOutline , trophy } from 'ionicons/icons';
+import { sync , checkmarkCircleOutline , trophy , ellipsisVertical } from 'ionicons/icons';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Network } from '@capacitor/network';
 
+import Sync from '../components/Sync.vue';
+
 export default  {
   name: 'Home',
-  components: { IonHeader, IonToolbar, IonTitle, IonContent , IonGrid , IonRow , IonCol , IonPage , IonButton , IonIcon }
+  components: { 'sync': Sync , IonHeader, IonToolbar, IonTitle, IonContent , IonGrid , IonRow , IonCol , IonPage , IonButton , IonIcon , IonButtons }
   ,data () {
       return {
             metaFinal: 3,
             metaActual: 0,
             rutasRecientes: [],
+            openForm: false,
+            today: ''
         }
   },
   methods:{
@@ -113,7 +134,8 @@ export default  {
       form.append('rows', this.rutasRecientes[index].rows ) //enviando respuestas
       form.append('incidences', this.rutasRecientes[index].incidences ) //enviando respuestas
 
-      axios.post( 'https://preventa-dev.plantroya.com/api/v1/seller/poll' , form )
+      //xios.post( 'http://tesalia.presale.wa.test/api/v1/seller/poll' , form )
+      axios.post( 'https://preventa.plantroya.com/api/v1/seller/poll' , form )
         .then( response => {
           console.log(response.data)
             if ( response.data.status ) {
@@ -164,7 +186,7 @@ export default  {
     getPols(){
       console.log('getting polls')
       if(!localStorage.getItem('polls-preventa')){
-        axios.get('https://preventa-dev.plantroya.com/api/v1/seller/poll/create' )
+        axios.get('https://preventa.plantroya.com/api/v1/seller/poll/create' )
         .then( response => {
            localStorage.setItem('polls-preventa',JSON.stringify(response.data.rows));
         })
@@ -176,7 +198,7 @@ export default  {
     getIncidences(){
       console.log('getting incidences')
       if(!localStorage.getItem('incidences-preventa')){
-        axios.get('https://preventa-dev.plantroya.com/api/v1/seller/poll/getincidences' )
+        axios.get('https://preventa.plantroya.com/api/v1/seller/poll/getincidences' )
           .then( response => {
               localStorage.setItem('incidences-preventa', JSON.stringify(response.data.rows))
           })
@@ -185,13 +207,16 @@ export default  {
           })
       }
     },
-    
+    closeForm(){
+      this.openForm = false;
+    }
   },
   created() {
       addIcons({
         'sync': sync,
         'checkmark-circle-outline': checkmarkCircleOutline,
-        'trophy': trophy
+        'trophy': trophy,
+        'ellipsis-vertical': ellipsisVertical
       })
   },
   setup() {
@@ -199,16 +224,23 @@ export default  {
     return { router };
   },
   mounted(){
+    const d = new Date();
+    this.today = d.toLocaleDateString('pt-PT');
     this.getPols()
     this.getIncidences()
+    
   },
   updated(){
       let count = 0;
       if(localStorage.getItem('recientes-preventa')){
       this.rutasRecientes = JSON.parse(localStorage.getItem('recientes-preventa'))
       this.rutasRecientes.forEach(ruta => {
-        count++;
-        (ruta.uploaded ? this.metaActual = count : '' )
+        /* count++;
+        (ruta.uploaded && this.today == ruta.date ? this.metaActual = count : '' ) */
+        if(ruta.uploaded && this.today == ruta.date ){
+          count++;
+          this.metaActual = count
+        }
       })
     }
   }

@@ -1,7 +1,7 @@
 <template>
-        <div class="ion-padding" style="background-color:#000;font-size:1.2em;position:fixed;z-index:1000;width:100%">
+        <div class="ion-padding" :class="classColor" style="background-color:#000;font-size:1.2em;position:fixed;z-index:1000;width:100%">
           <span>Tiempo Transcurrido</span> 
-          <span class="border" style="padding:6px;margin-left:15px;margin-right:15px">
+          <span class="border" :class="classColor" style="padding:6px;margin-left:15px;margin-right:15px">
             {{minutes}} : <span v-if="seconds.toString().length == 1">0</span>{{seconds}}
           </span>
         </div>
@@ -74,14 +74,14 @@
             </div>
           </ion-list>
         </div>
-
+            <p class="ion-text-center" v-if="isFetching"> <ion-spinner></ion-spinner> </p>
           <ion-button fill="outline" color="light" @click="goBack">Atras</ion-button>
           <ion-button style="margin-left:2rem" @click="presentAlertConfirm">Continuar</ion-button>
 </template>
 
 <script>
 /* eslint-disable */
-import { IonGrid , IonRow , IonCol , IonLabel , IonInput , IonTextarea , IonCheckbox , IonList , IonItem , toastController , IonButton , IonIcon , alertController } from '@ionic/vue';
+import { IonGrid , IonRow , IonCol , IonLabel , IonInput , IonTextarea , IonCheckbox , IonList , IonItem , toastController , IonButton , IonIcon , IonSpinner , alertController } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { addIcons } from 'ionicons';
 import { imageOutline , checkmarkOutline , closeCircle } from 'ionicons/icons';
@@ -95,7 +95,7 @@ import { Network } from '@capacitor/network';
 
 export default  {
   name: 'Process',
-  components: { IonGrid , IonRow , IonCol , IonLabel , IonInput , IonTextarea , IonCheckbox , IonList , IonItem , IonButton , IonIcon }
+  components: { IonGrid , IonRow , IonCol , IonLabel , IonInput , IonTextarea , IonCheckbox , IonList , IonItem , IonButton , IonIcon , IonSpinner }
   ,data () {
       return {
             count: true,
@@ -110,7 +110,8 @@ export default  {
             photoLastFile: null,
             lat: 0,
             lng: 0,
-            duration: 0
+            duration: 0,
+            isFetching: false
         }
   },
   methods:{
@@ -206,26 +207,22 @@ export default  {
         /* Agregando incidencias al form */
         form.append('incidences', JSON.stringify(incidences));
 
-        let recienteItem = {'client_id': this.client.id, 'client_code': this.client.code, 'lat': this.lat, 'lng': this.lng , 'rows': JSON.stringify(rows), 'incidences': JSON.stringify(incidences)}
+        const d = new Date();
+        let recienteItem = {'client_id': this.client.id, 'client_code': this.client.code, 'lat': this.lat, 'lng': this.lng , 'rows': JSON.stringify(rows), 'incidences': JSON.stringify(incidences), 'date': d.toLocaleDateString('pt-PT')}
 
         /* Si el telefono esta conectado a internte sube data a servidor */
         const  network = await Network.getStatus()
         
         let recientes = [];
-        if(localStorage.getItem('recientes-entrega')){
-            recientes = JSON.parse(localStorage.getItem('recientes-entrega'))
+        if(localStorage.getItem('recientes-preventa')){
+            recientes = JSON.parse(localStorage.getItem('recientes-preventa'))
         }
 
         if(network.connected){
           recienteItem.uploaded = true
-
+          this.isFetching = true
           console.log('CON INTERNET')
-                            recientes.push(recienteItem);
-
-                            localStorage.setItem('recientes-preventa', JSON.stringify(recientes));
-                            this.$emit('nextStep');
-
-          axios.post( 'https://preventa-dev.plantroya.com/api/v1/seller/poll' , form )
+          axios.post( 'https://preventa.plantroya.com/api/v1/seller/poll' , form )
           //axios.post( 'http://tesalia.presale.wa.test/api/v1/seller/poll' , form )
                 .then( response => {
                   console.log(response.data)
@@ -233,14 +230,17 @@ export default  {
                         setTimeout( () => {
                             recientes.push(recienteItem);
                             localStorage.setItem('recientes-preventa', JSON.stringify(recientes));
+                            this.isFetching = false
                             this.$emit('nextStep');
                         },500)
                     } else {
                       this.openToast(response.data.message , 'danger');
+                      this.isFetching = false
                       return false
                     }
                 })
                 .catch( failure  => {
+                    this.isFetching = false
                     console.log( failure )
                     return false
                 })
@@ -386,6 +386,11 @@ export default  {
             if(this.seconds == 60){
               this.seconds = 0
               this.minutes++
+              if(this.minutes == 1){
+                this.classColor = 'count-1min'
+              }else if(this.minutes == 2){
+                this.classColor = 'count-2min'
+              }
             }
           }, 1000 )
         }
@@ -422,5 +427,13 @@ export default  {
     font-size: .7em;
     max-width: 110px;
     margin: 5px;
+  }
+  .count-1min{
+    border-color: orange;
+    color: orange;
+  }
+  .count-2min{
+  border-color: red;
+    color: red;
   }
 </style>
